@@ -1,18 +1,18 @@
-# from google import genai
 from dotenv import load_dotenv
 import sys ## BUILT IN
 import os ## BUILT IN
-import requests
 from dotenv import load_dotenv
-# from bs4 import BeautifulSoup
 import google.generativeai as genai
-from google.generativeai import types
 import json ## BUILT IN
-import argparse ## BUILT IN
-import pathlib
-import httpx
 import PyPDF2
 import re
+
+"""
+    Kristen: Once it prints out the flash cards, 
+    we should prompt the user to enter which Flashcard number they had issues with, 
+    and then index it based with the questions and feed it back into an API to generate 
+    questions for the student to ask the professor based on the flashcards the student got wrong.
+"""
 
 
 ### For eventual website, nothing too crazy, basic html and css ###
@@ -151,7 +151,7 @@ def main():
     print(f"References: {references}\n")
 
    
-    for_json_output = json.dumps(json_data)
+    # for_json_output = json.dumps(json_data)
     
     # list_of_questions = list(questions.values())
     # list_of_answers = list(answers.values())
@@ -160,8 +160,10 @@ def main():
         print("Mismatch between number of questions and numbers.")
 
     for i in range(len(questions)):
+        print(f"---------- Flashcard {i+1} ----------")
         print(f"Question: {questions[i]}")
-        print(f"Answer: {answers[i]}\n")
+        print(f"Answer: {answers[i]}")
+        print("-"*50 + "\n")
         
     for_json_output = json.dumps(json_data, indent=2)
     return for_json_output
