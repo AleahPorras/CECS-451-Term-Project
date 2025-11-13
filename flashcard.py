@@ -4,7 +4,7 @@ import sys ## BUILT IN
 import os ## BUILT IN
 import requests
 from dotenv import load_dotenv
-from bs4 import BeautifulSoup
+# from bs4 import BeautifulSoup
 import google.generativeai as genai
 from google.generativeai import types
 import json ## BUILT IN
@@ -12,6 +12,7 @@ import argparse ## BUILT IN
 import pathlib
 import httpx
 import PyPDF2
+import re
 
 
 ### For eventual website, nothing too crazy, basic html and css ###
@@ -69,22 +70,25 @@ def main():
     
     # file_path = pathlib.Path(gained_pdf)
     file_text = get_pdf_text(gained_pdf)
+    pdf_content = "\n".join(file_text)
     # file = genai.upload_file(path=file_path,)
 
     # what would client be? model? *shrug* oh she cooking🔥 😵‍💫 *gulp*,
 
 
-    #configuring using api key, api key stored as env variable
-    load_dotenv()
+    # #configuring using api key, api key stored as env variable
+    # load_dotenv()
 
-    #spesifying model and other requirments/ restrictions
+  
     model = genai.GenerativeModel(model_name="gemini-2.5-flash", generation_config = genai.GenerationConfig(
-        # contents = file,
+       
         temperature= 0.2,
         top_p = 0.9,
         top_k = 40,
         max_output_tokens= 8192) , system_instruction= "You are an expert-level educational AI Flashcard card generator that sumirizes text, in question and answer format."
+                                                    "Questions are random"
                                                       "Format of JSON is questions are in order and answers are in order so that if you turned it into a list it would be indexable so answer[0] would be the answer to question[0]"
+                                                      "JSON has 3 keys named questions (store questions), answers(store matching answers), and references(cite where you got the info)"
                                                       "You are only able to use the provided pdf, pdf images, and pdf text, nothing else."
                                                       "Generate how may questions by using what the user provided for num_flashcards "
                                                       "You must not and cannot use any outside information other than the text given."
@@ -92,10 +96,10 @@ def main():
     )
 
 ##______________________________________Communication with google gemini______________________________________
-    ##Prompt Gemini will use
+   
     instruction = [f"Please generate exactly {num_flashcards} flashcards from the provided file."
     f"Use the the url provided by user named file"
-        f"Use the text and images in {file_text}, assume anything on the pdf is fair game"
+        f"Use the text {pdf_content}, assume anything on the pdf is fair game"
         f"Generate {num_flashcards} of flashcards ONLY"
         #"Dont include any other subsections, a single paragraph for all types of websites not just articles"
         f"1. questions: generate {num_flashcards} mostly a question that are main points of the slides and a few otheer questions"
@@ -111,31 +115,42 @@ def main():
     
     response = model.generate_content(instruction)
 # ______________________________________Output to the terminal______________________________________
-    #striping response
+    
     info = response.text.strip()
+    match = re.search(r"```json\s*(\{.*?\})\s*```", info, re.DOTALL)
+    
+    needed = ""
+    if match:
+        needed = match.group(1) 
+    else:
+        if info.startswith("{"):
+                needed = info
+        else:
+            print("Google JSON Error")
+            print(info)
+            sys.exit("AI did not return valid JSON.")
 
-    ## preparing for json load (learned gemini likes to wrap it which prevents the text being loaded right away"
-    needed = info.strip("```")
-    needed = needed.strip("```json")
-    # needed = info.strip(" \n```json``` \n")
+    
+    try:
+        json_data = json.loads(needed)
+    except json.JSONDecodeError as e:
+        print(f"JSON Error")
+        print(needed)
+        sys.exit("invalid")
 
-    ## loading the needed data
-    json_data = json.loads(needed)
     print(" ")
 
-    ##Storing each definition in its own variable to easily print
-    # url = json_data["url"]
+
     questions = json_data["questions"]
     answers = json_data["answers"]
     references = json_data["references"]
 
-    ## final terminal print
-    # print(f"From URL: {url}\n")
+  
     print(f"Questions: {questions}\n")
     print(f"Answers: {answers}\n")
     print(f"References: {references}\n")
 
-    #output in json format
+   
     for_json_output = json.dumps(json_data)
     
     # list_of_questions = list(questions.values())
@@ -146,7 +161,7 @@ def main():
 
     for i in range(len(questions)):
         print(f"Question: {questions[i]}")
-        print(f"Answer: {answers[i]}")
+        print(f"Answer: {answers[i]}\n")
         
     for_json_output = json.dumps(json_data, indent=2)
     return for_json_output
