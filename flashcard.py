@@ -53,8 +53,8 @@ def main():
 
     #configuring using api key, api key stored as env variable
     load_dotenv()
-    get_api_key = os.getenv("GEMINI_API_KEY")
-    genai.configure(api_key = get_api_key)
+    # get_api_key = os.getenv("GEMINI_API_KEY")
+    genai.configure(api_key=load_dotenv("GEMINI_API_KEY"))
 
     #spesifying model and other requirments/ restrictions
     model = genai.GenerativeModel(model_name="gemini-1.5-flash", generation_config = genai.GenerationConfig(
@@ -80,9 +80,9 @@ def main():
         f"1. questions: generate {num_flashcards} mostly a question that are main points of the slides and a few otheer questions"
         f"2. answers: generate an answer to each generated question using the information provided in the pdf should match order of generated questions"
         "3. references: list refrences used (you should only be)"
-        "4. Do not repeat any questions or answers. Each flashcard should focus on a different topic."
-        "5. Questions should be a clear prompt or term."
-        "6. Answers should be the definition or explanation."
+        "Do not repeat any questions or answers. Each flashcard should focus on a different topic."
+        "Questions should be a clear prompt or term."
+        "Answers should be the definition or explanation."
         "You must not and cannot use any outside information other than the text given."
         "Make sure this is all given in TRUE JSON format only so it can be printed separately easily later . Make sure questions and answers are in json format."
         "Only 2 sections should exist per flashcard, no more no less."
@@ -117,6 +117,11 @@ def main():
    
     list_of_questions = list(questions.values())
     list_of_answers = list(answers.values())
+
+    for i in range(len(list_of_questions)):
+        print(f"Question: {list_of_questions[i]}")
+        print(f"Answer: {list_of_answers[i]}")
+        
 
     return for_json_output
 
