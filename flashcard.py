@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 import sys ## BUILT IN
 import os ## BUILT IN
-from dotenv import load_dotenv
 import google.generativeai as genai
 import json ## BUILT IN
 import PyPDF2
@@ -14,32 +13,6 @@ import re
     questions for the student to ask the professor based on the flashcards the student got wrong.
 """
 
-
-### For eventual website, nothing too crazy, basic html and css ###
-# from flask import Flask
-# import pathlib
-
-# # creates an instance of the Flask class
-# app = Flask(__name__)
-
-# # this decorator tells Flask what URL needs to trigger the function
-# @app.route('/')
-# # returns the content we want to display in the browser
-# def hello_world():
-#     return '<p>Hello, World!</p>'
-
-# @app.route('/testing')
-# def testing():
-#     return '<h1>TESTING</h1>'
-
-### Simple Testing ###
-# load_dotenv()
-# client = genai.Client(api_key=load_dotenv("GEMINI_API_KEY"))
-# response = client.models.generate_content(
-#     model="gemini-2.5-flash",
-#     contents="Explain how AI works in a few words",
-# )
-# print(response.text)
 
 
 ##______________________________________Finding the URL argument______________________________________
@@ -55,6 +28,7 @@ def get_pdf_text(pdf_file):
 ##______________________________________Main Program, LLM communication and output______________________________________
 
 def main():
+    print(f"------------------------------ *Flashcard Generator Section* ------------------------------")
     print("Welcome to your flashcard generator!")
     print("File upload information: ")
     print("   - Model currently only takes ONE pdf document and only a pdf document (for now)")
@@ -63,23 +37,35 @@ def main():
     print("   - Input will ask for a file name, exclude .pdf from name and must be exactly as it is int he system")
     
     print("For example file CECS_478_Slides.pdf path should look like data/CECS_478_Slides.pdf or else this will not work!")
+    
     file_name = input("Please enter a file name: ")
+    print(" ")
+    try:
+        gained_pdf = f'data/{file_name}.pdf'
+        file_text = get_pdf_text(gained_pdf)
+    except FileNotFoundError:
+        print("You entered an invalid file name, using CECS_478_Slides.pdf in place (will fix this later) ") 
+        file_name ='CECS_478_Slides'
+        gained_pdf = f'data/{file_name}.pdf'
+        file_text = get_pdf_text(gained_pdf)
+
     
     load_dotenv()
+    
     get_api_key = os.getenv("GEMINI_API_KEY")
+    if get_api_key == None: 
+        sys.exit("No API key found with that name")
     genai.configure(api_key=get_api_key)
 
     #getting text from website
     # gained_pdf = find_pdf()
-    gained_pdf = f'data/{file_name}.pdf'
+  
     num_flashcards = 6
     # used_text = url_prosessing()
     ## Checks if there was an erros in the url processing, if error system exit so it doesnt feed None to Gemini
-    if gained_pdf == None:
-        sys.exit("Check the above error, something went wrong")
+   
     
     # file_path = pathlib.Path(gained_pdf)
-    file_text = get_pdf_text(gained_pdf)
     pdf_content = "\n".join(file_text)
     # file = genai.upload_file(path=file_path,)
 
@@ -87,7 +73,7 @@ def main():
 
 
     # #configuring using api key, api key stored as env variable
-    # load_dotenv()
+   
 
   
     model = genai.GenerativeModel(model_name="gemini-2.5-flash", generation_config = genai.GenerationConfig(
@@ -95,7 +81,7 @@ def main():
         temperature= 0.2,
         top_p = 0.9,
         top_k = 40,
-        max_output_tokens= 8192) , system_instruction= " first call: You are an expert-level educational AI Flashcard card generator that sumirizes text, in question and answer format."
+        max_output_tokens= 8192) , system_instruction= " You are an expert-level educational AI Flashcard card generator that sumirizes text, in question and answer format."
                                                     "Questions are random"
                                                       "Format of JSON is questions are in order and answers are in order so that if you turned it into a list it would be indexable so answer[0] would be the answer to question[0]"
                                                       "JSON has 3 keys named questions (store questions), answers(store matching answers), and references(cite where you got the info)"
@@ -104,12 +90,12 @@ def main():
                                                       "You must not and cannot use any outside information other than the text given."
                                                       "Output will be in json format that can be acessed through questions and outputs."
                                                       "You will then get a second call, this will be of questions the user struggled with"
-                                                      "Second call: your job will be to act as a question generator for a professors office hours"
+                                                    
     )
 
 ##______________________________________Communication with google gemini______________________________________
-   
-    print("Working on flashcards...")
+    
+    print("Working on flashcards...\n")
     flashcard_instruction = [f"Please generate exactly {num_flashcards} flashcards from the provided file."
     f"Use the the url provided by user named file"
         f"Use the text {pdf_content}, assume anything on the pdf is fair game"
@@ -158,20 +144,9 @@ def main():
     questions = json_data["questions"]
     answers = json_data["answers"]
     references = json_data["references"]
-
-  
-    # print(f"Questions: {questions}\n")
-    # print(f"Answers: {answers}\n")
-    # print(f"References: {references}\n")
-
-   
-    # for_json_output = json.dumps(json_data)
     
-    # list_of_questions = list(questions.values())
-    # list_of_answers = list(answers.values())
-
     if len(questions) != len(answers):
-        print("Mismatch between number of questions and numbers.")
+        sys.exit("Mismatch between number of questions and numbers. Google Gemini did not match number of questions with number of answers")
 
     for i in range(len(questions)):
         print(f"---------- Flashcard {i+1} ----------")
@@ -180,22 +155,48 @@ def main():
         print("-"*50 + "\n")
         
     for_json_output = json.dumps(json_data, indent=2)
-
+    print(f"------------------------------ *Office Hours Section* ------------------------------")
     any_problems = input("How did studying go? Any flashcards you struggled with? (no/yes): ")
     if any_problems == 'yes':
-        problem_flashcards = input("Enter the flashcard numbers you struggled with: ")
         try:
+            problem_flashcards = input("Enter the flashcard numbers you struggled with: ")
             problem_numbers = [int(n.strip()) for n in problem_flashcards.split(',') if n.strip().isdigit()]
+           
+            
+            while len(problem_numbers) == 0:
+                problem_flashcards = input("Error, please enter flashcard numbers you struggled with: ")
+                problem_numbers = [int(n.strip()) for n in problem_flashcards.split(',') if n.strip().isdigit()]
+                
+              
+
         except ValueError:
-            print("Invalid input. Please enter numbers separated by commas.")
-            problem_numbers = []
+            sys.exit("You didn't enter any flashcard numbers or your numbers weren't processed correctly.")
+
         hard_flashcards = []
         for i in range(len(questions)):
-            if str(i+1) in problem_flashcards:
-                hard_flashcards.append(questions[i])
+            if (i+1)  in problem_numbers:
+               hard_flashcards.append(questions[i])
+        while len(hard_flashcards) == 0:
+             try:
+                print("You entered a flashcard number that doesn't exist or is out of range...")
+                problem_flashcards = input("Enter the flashcard numbers you struggled with: ")
+                problem_numbers = [int(n.strip()) for n in problem_flashcards.split(',') if n.strip().isdigit()]
+           
+            
+                while len(problem_numbers) == 0:
+                    problem_flashcards = input("You didn't enter integers, please enter flashcard integer number you struggled with: ")
+                    problem_numbers = [int(n.strip()) for n in problem_flashcards.split(',') if n.strip().isdigit()]
+             except ValueError:
+                sys.exit("You didn't enter any flashcard numbers or your numbers weren't processed correctly.")
+             for i in range(len(questions)):
+                if (i+1)  in problem_numbers:
+                    hard_flashcards.append(questions[i])
+
+
         num_questions = 4
         hard_flashcard_text = str(hard_flashcards)
-        print("Working on office hours questions...")
+        print(" ")
+        print("Working on office hours questions...\n")
         office_hours_instruction = [f"Please generate exactly {num_questions} questions or examples to have the professor  walk through about challenging material."
             f"Use the provied list of questions that the the user had an issue with "
             f"Use the questions in {hard_flashcard_text} do not just provided questions that are the flashcard questions"
@@ -229,11 +230,15 @@ def main():
             sys.exit("invalid")
 
         print(" ")
+        print(" ")
+        print(" ")
 
         questions = json_data["questions"]
         # print(f"Questions: {questions}\n")
         for i in range(len(questions)):
-            print(f"Question: {questions[i]}\n")
+            print(f"---------- Office Hours Question {i+1} ----------")
+            print(f"Question: {questions[i]}")
+            print("-"*50 + "\n")
         
 
     else: 
@@ -241,6 +246,3 @@ def main():
 
 
 main()
-### For future website, ignore for now
-# if __name__ == '__main__':
-#     app.run(debug=True)
