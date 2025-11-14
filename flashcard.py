@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
-import sys ## BUILT IN
-import os ## BUILT IN
+import sys 
+import os 
 import google.generativeai as genai
-import json ## BUILT IN
+import json 
 import PyPDF2
 import re
 
@@ -180,7 +180,11 @@ def main():
              try:
                 print("You entered a flashcard number that doesn't exist or is out of range...")
                 problem_flashcards = input("Enter the flashcard numbers you struggled with: ")
-                problem_numbers = [int(n.strip()) for n in problem_flashcards.split(',') if n.strip().isdigit()]
+                problem_numbers = []
+                for problem in problem_flashcards.split(','):
+                    if problem.strip().isdigit():
+                        problem_num = int(problem.strip()) 
+                        problem_numbers.append(problem_num)
            
             
                 while len(problem_numbers) == 0:
