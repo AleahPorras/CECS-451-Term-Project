@@ -15,19 +15,25 @@ import re
 
 
 
-##______________________________________Finding the URL argument______________________________________
+##______________________________________stripping the Pdf text______________________________________
 def get_pdf_text(pdf_file):
+    #opening the file using raw binary mode
     with open(pdf_file,'rb') as pdf:
+        #reads the pdf and stores it as an object, strict set to false so it doesn't crash easily 
         read = PyPDF2.PdfReader(pdf, strict=False)
+        #empty list for text
         pdf_text = []
+        #going through each page and getting the text, then adding that text to the list
         for item in read.pages:
             text = item.extract_text()
             pdf_text.append(text)
+        #returning extracted text
         return pdf_text
 
 ##______________________________________Main Program, LLM communication and output______________________________________
 
 def main():
+    #Giving the user what to expect and an over view of what the system is expecting
     print(f"------------------------------ *Flashcard Generator Section* ------------------------------")
     print("Welcome to your flashcard generator!\n")
     print("File upload information: ")
@@ -48,52 +54,50 @@ def main():
     print("        * if you enter a flashcard number out of range, it just won't add it to the the quiestions to put into the API")
 
 
-    
+    #user types in a name of a file in data folder
     file_name = input("Please enter a file name: ")
     print("")
     
     try:
+        #gets the full path to that pdf
         gained_pdf = f'data/{file_name}.pdf'
+        #feeds that file into our pdf text stripper
         file_text = get_pdf_text(gained_pdf)
     except FileNotFoundError:
+        # if the user got here, that means they didn't enter a valid file
+        #thats fine, temp using a random file and will run, this keeps the code from breaking and dontinuing on with a demo
         print("You entered an invalid file name, using CECS_478_Slides.pdf in place (will fix this later) \n") 
         file_name ='CECS_478_Slides'
         gained_pdf = f'data/{file_name}.pdf'
         file_text = get_pdf_text(gained_pdf)
 
-    
+    #laoding enviornment
     load_dotenv()
     
+    #retrieving the API key that is stored in an enviornment variable
     get_api_key = os.getenv("GEMINI_API_KEY")
+    #coudln't find an API key
     if get_api_key == None: 
+        # sytem exists 
         print("Exiting...")
         sys.exit("No API key found with that name")
+    #configuring the model using the api key it got
     genai.configure(api_key=get_api_key)
 
-    #getting text from website
-    # gained_pdf = find_pdf()
-  
+    #set number of flashcards to be created
     num_flashcards = 6
-    # used_text = url_prosessing()
-    ## Checks if there was an erros in the url processing, if error system exit so it doesnt feed None to Gemini
    
-    
-    # file_path = pathlib.Path(gained_pdf)
+    # making one string for the text provided to hand off to the model
     pdf_content = "\n".join(file_text)
-    # file = genai.upload_file(path=file_path,)
-
-    # what would client be? model? *shrug* oh she cooking🔥 😵‍💫 *gulp*,
-
-
-    # #configuring using api key, api key stored as env variable
-   
-
-  
+ 
+    #defining the model, using low randomnees because we want the AI to focus on the information in the slides
+    #more than outside information so that the user gets help with what was gone over in class
     model = genai.GenerativeModel(model_name="gemini-2.5-flash", generation_config = genai.GenerationConfig(
        
         temperature= 0.2,
         top_p = 0.9,
         top_k = 40,
+        #Some instructions for the model to follow
         max_output_tokens= 8192) , system_instruction= " You are an expert-level educational AI Flashcard card generator that sumirizes text, in question and answer format."
                                                        "Questions are random"
                                                        "Format of JSON is questions are in order and answers are in order so that if you turned it into a list it would be indexable so answer[0] would be the answer to question[0]"
@@ -107,8 +111,10 @@ def main():
     )
 
 ##______________________________________Communication with google gemini______________________________________
-    
+    #letting the user know that their request is being process as it takes a min for the AI to spit out the sflashcards to the user
     print("Working on flashcards...\n")
+    # More specific instructions for flashcard genration, gave it a name so that we can distinguish 
+    # What instructions this for
     flashcard_instruction = [
         f"Please generate exactly {num_flashcards} flashcards from the provided file."
         f"Use the the url provided by user named file"
@@ -126,82 +132,107 @@ def main():
         "With the JSON format, I want to be able to load into json and then print out the questions and answers separately."
         ]
     
+    #feeds task prompt into the model
     response = model.generate_content(flashcard_instruction)
 # ______________________________________Output to the terminal______________________________________
     
     info = response.text.strip()
-    searching_for_symbols = re.search(r"```json\s*(\{.*?\})\s*```", info, re.DOTALL)
+    #Looking for the json format and taking what is in side (more effective from the other way I was doing it and avoids capturing something that would mess up prints)
+    searching_for_json_object = re.search(r"```json\s*(\{.*?\})\s*```", info, re.DOTALL)
     
+    #string place holder
     wanted_text = ""
-    if searching_for_symbols:
-        wanted_text = searching_for_symbols.group(1) 
+    #checking if we found json
+    if searching_for_json_object:
+        #takes that group, without json wrap and puts it into wanted text
+        wanted_text = searching_for_json_object.group(1) 
     else:
+        #due to AI putting out the output chance that AI might not do the wrapper (doubtful tho lol), lastly checks if there was at least somethin returned that resembles json
         if info.startswith("{"):
+                #if found, assigned that to wanted text
                 wanted_text = info
         else:
-            print("Google JSON Error")
-            print(info)
+            #means it didn't find the right format, system exits 
             print("Exiting...")
-            sys.exit("AI did not return valid JSON.")
+            sys.exit("AI did not return valid JSON or wasn't found.")
 
     
     try:
+        #loads into json
         json_data = json.loads(wanted_text)
     except json.JSONDecodeError as e:
-        print(f"JSON Error")
-        print(wanted_text)
+        # if user gor here this means our inital check didn't catch this
+        print(f"{e}")
         print("Exiting...")
         sys.exit("invalid")
 
     print(" ")
 
-    
+    #storing just questions
     questions = json_data["questions"]
+    #storing just answers
     answers = json_data["answers"]
-    references = json_data["references"]
-    
+
+    #means that some where there is a mix up, wither wrong number of questions or wrong number of answers
     if len(questions) != len(answers):
         print("Exiting...")
         sys.exit("Mismatch between number of questions and numbers. Google Gemini did not match number of questions with number of answers")
-
+    
+    #goes through how mnay questions were generated and prints ou8t its mathcing answer
     for i in range(len(questions)):
         print(f"---------- Flashcard {i+1} ----------")
         print(f"Question: {questions[i]}")
         print(f"Answer: {answers[i]}")
         print("-"*50 + "\n")
     
-    #for testing and debugging
-    for_json_output = json.dumps(json_data, indent=2)
-
+    #Office hour questions section
     print(f"------------------------------ *Office Hours Section* ------------------------------")
+    #ask the user if they struggled answering any of the questions on the flashcards
     any_problems = input("How did studying go? Any flashcards you struggled with? (no/yes): ")
+    #error handling in case they didn't answer yes or no
     while any_problems != 'no' and any_problems != 'yes':
         print("ERROR: you didn't answer with yes or no (please enter in lower case and as show)")
+        #re asks the user
         any_problems = input("How did studying go? Any flashcards you struggled with? (no/yes): ")
 
+    #means they had some problems understanding the code
     if any_problems == 'yes':
         try:
+            #asks the user which flashcards they had a problem with
             problem_flashcards = input("Enter the flashcard numbers you struggled with: ")
-            problem_numbers = [int(n.strip()) for n in problem_flashcards.split(',') if n.strip().isdigit()]
+            problem_numbers = []
+            #stores each digit in the list 
+            for problem in problem_flashcards.split(','):
+                    #only grabs a valid digit
+                    if problem.strip().isdigit():
+                        problem_num = int(problem.strip()) 
+                        problem_numbers.append(problem_num)
            
             
             while len(problem_numbers) == 0:
                 problem_flashcards = input("Error, please enter flashcard numbers you struggled with: ")
-                problem_numbers = [int(n.strip()) for n in problem_flashcards.split(',') if n.strip().isdigit()]
-                
-              
-
+                problem_numbers = []
+                for problem in problem_flashcards.split(','):
+                    if problem.strip().isdigit():
+                        problem_num = int(problem.strip()) 
+                        problem_numbers.append(problem_num)
         except ValueError:
             print("Exiting...")
             sys.exit("You didn't enter any flashcard numbers or your numbers weren't processed correctly.")
         print(" ")
+        #getting read to fetch those flashcards
         hard_flashcards = []
+        #going through each number in the length of questions
         for i in range(len(questions)):
+            #checks if that question was one the user struggled with
             if (i+1)  in problem_numbers:
+               #appends that to the list
                hard_flashcards.append(questions[i])
         
+        #means it didn't find any questions based on what the user entered
         while len(hard_flashcards) == 0:
              try:
+                #-------------------------relooping basically same as before----------------------
                 print("You entered a flashcard number that doesn't exist or is out of range...")
                 problem_flashcards = input("Enter the flashcard numbers you struggled with: ")
                 problem_numbers = []
@@ -209,11 +240,15 @@ def main():
                     if problem.strip().isdigit():
                         problem_num = int(problem.strip()) 
                         problem_numbers.append(problem_num)
-           
-            
+
+              
                 while len(problem_numbers) == 0:
                     problem_flashcards = input("You didn't enter integers, please enter flashcard integer number you struggled with: ")
-                    problem_numbers = [int(n.strip()) for n in problem_flashcards.split(',') if n.strip().isdigit()]
+                    problem_numbers = []
+                    for problem in problem_flashcards.split(','):
+                        if problem.strip().isdigit():
+                            problem_num = int(problem.strip()) 
+                            problem_numbers.append(problem_num)
              except ValueError:
                 print("Exiting...")
                 sys.exit("You didn't enter any flashcard numbers or your numbers weren't processed correctly.")
@@ -221,11 +256,15 @@ def main():
                 if (i+1)  in problem_numbers:
                     hard_flashcards.append(questions[i])
 
-
+            #----------------------------------end of relooping-----------------------------------
+        #gets how many questions for office hours to generate, one per problem flashcard
         num_questions = len(hard_flashcards)
+        #turing into a string to feed into API
         hard_flashcard_text = str(hard_flashcards)
         print(" ")
+        #telling the user that the AI is working on the Office hours flashcards
         print("Working on office hours questions...\n")
+        #instructions for AI for the Office hours task
         office_hours_instruction = [f"Please generate exactly {num_questions} questions or examples to have the professor  walk through about challenging material."
             f"Use the provied list of questions that the the user had an issue with "
             f"Use the questions in {hard_flashcard_text} do not just provided questions that are the flashcard questions"
@@ -236,43 +275,47 @@ def main():
                 "With the JSON format, I want to be able to load into json and then print out the questions separately."
             ]
         
+        #feeding into the AI
         response = model.generate_content(office_hours_instruction)
         info = response.text.strip()
-        match = re.search(r"```json\s*(\{.*?\})\s*```", info, re.DOTALL)
+
+        #----------------------------------same json look up as before------------------------
+        searching_for_json_object = re.search(r"```json\s*(\{.*?\})\s*```", info, re.DOTALL)
         
-        needed = ""
-        if match:
-            needed = match.group(1) 
+        wanted_text = ""
+        if searching_for_json_object:
+            wanted_text = searching_for_json_object.group(1) 
         else:
             if info.startswith("{"):
-                    needed = info
+                    wanted_text = info
             else:
-                print("Google JSON Error")
-                print(info)
                 print("Exiting...")
-                sys.exit("AI did not return valid JSON.")
+                sys.exit("AI did not return valid JSON or wasn't found.")
 
         try:
-            json_data = json.loads(needed)
+            json_data = json.loads(wanted_text)
         except json.JSONDecodeError as e:
-            print(f"JSON Error")
-            print(needed)
-            print("Exiting...")
-            sys.exit("invalid")
+             print(f"{e}")
+             print("Exiting...")
+             sys.exit("invalid")
 
+        #----------------------------------end of repearting code-------------------------------
         print(" ")
         print(" ")
         print(" ")
 
+        #getting the questions created
         all_questions = json_data["questions"]
+        #problem where it sometimes skipped the heading so we put this in order to make sure its printing the number of questions needed
         questions = all_questions[:num_questions]
-        # print(f"Questions: {questions}\n")
+        
+        #printing out each question for office hours
         for i in range(len(questions)):
             print(f"---------- Office Hours Question {i+1} ----------")
             print(f"Question: {questions[i]}")
             print("-"*50 + "\n")
         
-
+    #since the user got a good understanding, exits and can be reran if wanted
     else: 
         print("Cool! Program will exit now!")
 
