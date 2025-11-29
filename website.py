@@ -22,17 +22,22 @@ def get_pdf_text(pdf_file):
     return pdf_text
 
 def generate_flashcards(pdf_text, num_flashcards):
-    #laoding enviornment
-    load_dotenv()
-    
-    #retrieving the API key that is stored in an enviornment variable
-    get_api_key = os.getenv("GEMINI_API_KEY")
-    #coudln't find an API key
-    if get_api_key == None: 
-        # sytem exists 
-        st.write("Exiting...")
-        st.error("No API key found with that name")
+
+    # retrieve the API key in streamlit
+    if "GEMINI_API_KEY" in st.secrets:
+        get_api_key = st.secrets["GEMINI_API_KEY"]
+
+    # if no API key on streamlit, looks at local .env files
+    else:
+        from dotenv import load_dotenv
+        load_dotenv()
+        get_api_key = os.getenv("GEMINI_API_KEY")
+
+    # checks if API was found
+    if get_api_key is None:
+        st.error("No API key found. Please set it in Streamlit Secrets or .env file.")
         st.stop()
+
     #configuring the model using the api key it got
     genai.configure(api_key=get_api_key)
 
@@ -139,16 +144,21 @@ def generate_flashcards(pdf_text, num_flashcards):
     #     print("-"*50 + "\n")
 
 def generate_office_hour_questions(pdf_text, any_problems):
-    #laoding enviornment
-    load_dotenv()
+    # retrieve the API key in streamlit
+    if "GEMINI_API_KEY" in st.secrets:
+        get_api_key = st.secrets["GEMINI_API_KEY"]
 
-    #retrieving the API key that is stored in an enviornment variable
-    get_api_key = os.getenv("GEMINI_API_KEY")
-    #coudln't find an API key
-    if get_api_key == None: 
-        # sytem exists 
-        print("Exiting...")
-        sys.exit("No API key found with that name")
+    # if no API key on streamlit, looks at local .env files
+    else:
+        from dotenv import load_dotenv
+        load_dotenv()
+        get_api_key = os.getenv("GEMINI_API_KEY")
+
+    # checks if API was found
+    if get_api_key is None:
+        st.error("No API key found. Please set it in Streamlit Secrets or .env file.")
+        st.stop()
+        
     #configuring the model using the api key it got
     genai.configure(api_key=get_api_key)
 
