@@ -158,7 +158,7 @@ def generate_office_hour_questions(pdf_text, any_problems):
     if get_api_key is None:
         st.error("No API key found. Please set it in Streamlit Secrets or .env file.")
         st.stop()
-        
+
     #configuring the model using the api key it got
     genai.configure(api_key=get_api_key)
 
@@ -199,8 +199,7 @@ def generate_office_hour_questions(pdf_text, any_problems):
         f"reread the powerpoint and match up where the user is confused from the text in {pdf_content}"
         f"1. questions: generate {num_questions} go through and look at the material the questions they struggled with were on and generate questions for a professor"
             "You must not and cannot use any outside information other than the text given and questions. This is one office hours question question per hard_flashcard_text question"
-            "Make sure this is all given in TRUE JSON format only so it can be printed separately easily later . Make sure questions are in json format."
-            "With the JSON format, I want to be able to load into json and then print out the questions separately."
+            "RETURN FORMAT: A single JSON object with a key 'questions' which is a list of strings.",'Example: {"questions": ["Why is X true?", "Explain Y further."]}',"Do not include any other keys or markdown outside the JSON."
         ]
     
     #feeding into the AI
@@ -217,9 +216,13 @@ def generate_office_hour_questions(pdf_text, any_problems):
         if info.startswith("{"):
                 wanted_text = info
         else:
-            print("Exiting...")
-            st.error("AI did not return valid JSON or wasn't found.")
-            st.stop()
+            match_list = re.search(r"(\[.*\])", info, re.DOTALL)
+            if match_list:
+                wanted_text = '{"questions": ' + match_list.group(1) + '}'
+            else:
+                print("Exiting...")
+                st.error("AI did not return valid JSON or wasn't found.")
+                st.stop()
 
     try:
         json_data = json.loads(wanted_text)
@@ -230,7 +233,13 @@ def generate_office_hour_questions(pdf_text, any_problems):
         st.stop()
 
     #getting the questions created
-    all_questions = json_data["questions"]
+    all_questions = json_data.get("questions", [])
+
+    if not all_questions:
+        for value in json_data.values():
+            if isinstance(value, list):
+                all_questions = value
+                break
     #problem where it sometimes skipped the heading so we put this in order to make sure its printing the number of questions needed
     questions = all_questions[:num_questions]
 
