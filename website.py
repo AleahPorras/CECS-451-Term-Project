@@ -37,7 +37,7 @@ def feedback(card_question, card_answer, card_feedback, office_hours = False):
     try:
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(user_email, user_password)
-        server.send_message
+        server.send_message(message)
         server.quit()
         print("Successfully sent feedback.")
     except Exception as e:
