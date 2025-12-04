@@ -1,0 +1,30 @@
+[
+    {
+        "Card Question": "What are the two main types of Denial of Service (DoS) attacks?",
+        "Card Answer": "Denial of Service attacks can be categorized into two main types: Flooding Attacks and Spoofing Attacks.",
+        "Feedback": "good"
+    },
+    {
+        "Card Question": "How does a Ping Flood attack aim to overwhelm a server?",
+        "Card Answer": "A Ping Flood attack aims to overwhelm the server's CPU by forcing it to process an impossible number of requests. This causes the CPU to work overtime, driving up the 'load average' and making the server increasingly laggy, ultimately denying service to legitimate users.",
+        "Feedback": "bad"
+    },
+    {
+        "Card Question": "What is a SYN Flood attack, what is its primary goal, and how does it exploit the TCP 3-way handshake?",
+        "Card Answer": "A SYN Flood attack's main goal is to fill up a server's \"network queue\" or \"connection states.\" It exploits the TCP 3-way handshake by having an attacker send SYN packets with spoofed (fake) source addresses to the server. The server receives the SYN, saves a connection state, and sends back a SYN-ACK. However, the final ACK packet never arrives because the spoofed IP address doesn't exist or belongs to an uninvolved victim. The server then waits for a timeout (e.g., 10, 30, or 60 seconds) before dropping the connection, tying up that connection state. As the attacker repeats this, all of the server's connection slots become filled with fake, half-open waiting connections, preventing legitimate users from establishing connections.",
+        "Feedback": "good"
+    },
+    {
+        "Card Question": "What are the two main categories of Denial of Service (DoS) attacks, and what resources do Flooding Attacks typically target?",
+        "Card Answer": "Denial of Service attacks can be categorized into two main types: Flooding Attacks and Spoofing Attacks. Flooding Attacks primarily focus on the CPU and System Load, often involving a flood of packets using TCP, UDP, or ICMP protocols.",
+        "Feedback": "bad"
+    },
+    {
+        "Office Hour Question": "The text describes viruses as parasitic programs focused on infecting existing files, while worms are designed to spread rapidly and independently. Could you elaborate on how these distinct purposes influence their typical stealth characteristics and the methods they employ for initial propagation?",
+        "Office Hour Feedback": "bad"
+    },
+    {
+        "Office Hour Question": "John von Neumann is credited with conceptualizing malware in 1949. Based on the provided text, what was the core theoretical concept he introduced that retrospectively led his work to be considered the foundation for self-replicating programs, which we now understand as malware?",
+        "Office Hour Feedback": "good"
+    }
+]

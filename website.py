@@ -9,6 +9,61 @@ import sys
 import os
 import re
 
+# used for qualitative feedback, very basic, simple thumbs up/down
+def feedback(card_question, card_answer, card_feedback, log_file = "feedback.json"):
+    json_feedback = {
+        "Card Question": card_question,
+        "Card Answer": card_answer,
+        "Feedback": card_feedback,
+    }
+
+    # adds feedback to the json log
+    if os.path.exists(log_file):
+        # opens "feedback.json"
+        with open(log_file, "r+") as f:
+            try:
+                # loads any previous feedback data
+                data = json.load(f)
+            except json.JSONDecodeError:
+                # returns empty list
+                data = []
+            data.append(json_feedback)
+            f.seek(0)
+            # saves the current feedback to the log
+            json.dump(data, f, indent = 4)
+        
+    else:
+        with open(log_file, "w") as f:
+            # saves the current feedback to the log
+            json.dump([json_feedback], f, indent = 4)
+
+def feedback_questions(q, question_feedback, log_file = "feedback.json"):
+
+    json_feedback = {
+        "Office Hour Question": q,
+        "Office Hour Feedback": question_feedback,
+    }
+
+    # adds feedback to the json log
+    if os.path.exists(log_file):
+        # opens "feedback.json"
+        with open(log_file, "r+") as f:
+            try:
+                # loads any previous feedback data
+                data = json.load(f)
+            except json.JSONDecodeError:
+                # returns empty list
+                data = []
+            data.append(json_feedback)
+            f.seek(0)
+            # saves the current feedback to the log
+            json.dump(data, f, indent = 4)
+        
+    else:
+        with open(log_file, "w") as f:
+            # saves the current feedback to the log
+            json.dump([json_feedback], f, indent = 4)
+
 def get_pdf_text(pdf_file):
     #reads the pdf and stores it as an object, strict set to false so it doesn't crash easily 
     read = PyPDF2.PdfReader(pdf_file, strict=False)
@@ -23,20 +78,22 @@ def get_pdf_text(pdf_file):
 
 def generate_flashcards(pdf_text, num_flashcards):
 
-    # retrieve the API key in streamlit
-    if "GEMINI_API_KEY" in st.secrets:
-        get_api_key = st.secrets["GEMINI_API_KEY"]
+    get_api_key = None
+
+    try:
+        # retrieve the API key in streamlit
+        if "GEMINI_API_KEY" in st.secrets:
+            get_api_key = st.secrets["GEMINI_API_KEY"]
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
 
     # if no API key on streamlit, looks at local .env files
-    else:
+    if get_api_key is None:
         from dotenv import load_dotenv
         load_dotenv()
         get_api_key = os.getenv("GEMINI_API_KEY")
-
-    # checks if API was found
-    if get_api_key is None:
-        st.error("No API key found. Please set it in Streamlit Secrets or .env file.")
-        st.stop()
 
     #configuring the model using the api key it got
     genai.configure(api_key=get_api_key)
@@ -144,20 +201,22 @@ def generate_flashcards(pdf_text, num_flashcards):
     #     print("-"*50 + "\n")
 
 def generate_office_hour_questions(pdf_text, any_problems):
-    # retrieve the API key in streamlit
-    if "GEMINI_API_KEY" in st.secrets:
-        get_api_key = st.secrets["GEMINI_API_KEY"]
+    get_api_key = None
+
+    try:
+        # retrieve the API key in streamlit
+        if "GEMINI_API_KEY" in st.secrets:
+            get_api_key = st.secrets["GEMINI_API_KEY"]
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
 
     # if no API key on streamlit, looks at local .env files
-    else:
+    if get_api_key is None:
         from dotenv import load_dotenv
         load_dotenv()
         get_api_key = os.getenv("GEMINI_API_KEY")
-
-    # checks if API was found
-    if get_api_key is None:
-        st.error("No API key found. Please set it in Streamlit Secrets or .env file.")
-        st.stop()
 
     #configuring the model using the api key it got
     genai.configure(api_key=get_api_key)
@@ -279,17 +338,42 @@ def main():
 
         # displays the flashcards one by one 
         for i, (q,a) in enumerate(zip(st.session_state['questions'], st.session_state['answers'])):
-            with st.expander(f"Flashcard {i+1}"):
-                st.write(f"**Question:** {q}")
-                with st.expander(f"**Answer**"):
-                    st.write(f"{a}")
+            
+            with st.container():
+                with st.expander(f"Flashcard {i+1}"):
+                    st.markdown(f"**Question:** {q}")
+                    with st.expander(f"**Answer:**"):
+                        st.markdown(a)
+
+                    # Feedback 
+                    st.caption("Is this flashcard helpful?")
+
+                    # only option1 and option2 will hold values
+                    # option3 just pushes the other two closer together
+                    option1, option2, option3 = st.columns([1,1,6])
+
+                    with option1:
+                        if st.button("🤓👍", key = f"{i}_good_info"):
+                            feedback(q, a, "good")
+                            st.toast("Feedback accepted.")
+
+                    with option2:
+                        if st.button("😢👎", key = f"{i}_bad_info"):
+                            feedback(q, a, "bad")
+                            st.toast("Feedback accepted.")
+                        
+            # with st.expander(f"Flashcard {i+1}"):
+            #     st.write(f"**Question:** {q}")
+            #     with st.expander(f"**Answer**"):
+            #         st.write(f"{a}")
 
         print("Finished generating flashcards.")
 
         ###-------------Office Hour Questions-------------###
             
         st.title("Office Hour Questions")
-        any_problems = st.multiselect("How did studying go? Any flashcards you struggled with?", options = st.session_state['questions'])
+        question_options = st.session_state.get('questions', [])
+        any_problems = st.multiselect("How did studying go? Any flashcards you struggled with?", options = question_options)
 
         if st.button("Generate Office Hour Questions"):
             # checks if a flashcard has been chosen
@@ -298,17 +382,38 @@ def main():
                 print("Generating extra questions...")
 
                 # calls the generate_office_hour_questions
-                office_hour_questions = generate_office_hour_questions(st.session_state['file_text'],any_problems)
+                st.session_state['office_hour_questions'] = generate_office_hour_questions(st.session_state['file_text'],any_problems)
 
-                # displays the questions
-                for i in office_hour_questions:
-                    st.write(f"**Question:** {i}")
-                
                 print("Finished generating questions.") # prints to terminal
 
-                st.write("**Good luck with your studying!**")
+                st.rerun()
+            
             else:
-                st.error("Select a flashcard to continue.")
+                st.error ("Select a flashcard to continue.")
 
+        if 'office_hour_questions' in st.session_state:
 
+            for i, question_text in enumerate(st.session_state['office_hour_questions']):
+                st.write(f"**Question:** {question_text}")
+
+                # Feedback 
+                st.caption("Is this question helpful?")
+
+                # only option1 and option2 will hold values
+                # option3 just pushes the other two closer together
+                option1, option2, option3 = st.columns([1,1,6])
+
+                with option1:
+                    if st.button("🤓👍", key = f"{i}_good_info_office_hours"):
+                        feedback_questions(question_text, "good")
+                        st.toast("Feedback accepted.")
+
+                with option2:
+                    if st.button("😢👎", key = f"{i}_bad_info_office_hours"):
+                        feedback_questions(question_text, "bad")
+                        st.toast("Feedback accepted.")
+
+                st.write("-" * 50)
+            
+            st.write("**Good luck with your studying!**")
 main()
