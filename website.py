@@ -4,65 +4,45 @@ import streamlit as st
 from dotenv import load_dotenv
 import PyPDF2
 import google.generativeai as genai
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import json
 import sys
 import os
 import re
 
 # used for qualitative feedback, very basic, simple thumbs up/down
-def feedback(card_question, card_answer, card_feedback, log_file = "feedback.json"):
-    json_feedback = {
-        "Card Question": card_question,
-        "Card Answer": card_answer,
-        "Feedback": card_feedback,
-    }
+def feedback(card_question, card_answer, card_feedback, office_hours = False):
+    try:
+        user_email = st.secrets["EMAIL_USER"]
+        user_password = st.secrets["EMAIL_PASSWORD"]
+        email_destination = st.secrets["MY_PERSONAL_EMAIL"]
+    except Exception:
+        st.error("Issue retreiving information from secrets.")
+        return
 
-    # adds feedback to the json log
-    if os.path.exists(log_file):
-        # opens "feedback.json"
-        with open(log_file, "r+") as f:
-            try:
-                # loads any previous feedback data
-                data = json.load(f)
-            except json.JSONDecodeError:
-                # returns empty list
-                data = []
-            data.append(json_feedback)
-            f.seek(0)
-            # saves the current feedback to the log
-            json.dump(data, f, indent = 4)
-        
-    else:
-        with open(log_file, "w") as f:
-            # saves the current feedback to the log
-            json.dump([json_feedback], f, indent = 4)
+    ## Assign subject tag for email
+    subject = "Office Hours Question" if office_hours else "Flashcard"
+    subject_text = f"{subject} New {card_feedback} : Feedback Sent"
 
-def feedback_questions(q, question_feedback, log_file = "feedback.json"):
+    email_text = f"User Feedback:\nType: {card_feedback}\nCategory: {subject}\nQuestion: {card_question}\nAnswer: {card_answer}"
 
-    json_feedback = {
-        "Office Hour Question": q,
-        "Office Hour Feedback": question_feedback,
-    }
+    message = MIMEMultipart()
+    message['From'] = user_email
+    message['To'] = email_destination
+    message['Subject'] = subject_text
+    message.attach(MIMEText(email_text, 'plain'))
 
-    # adds feedback to the json log
-    if os.path.exists(log_file):
-        # opens "feedback.json"
-        with open(log_file, "r+") as f:
-            try:
-                # loads any previous feedback data
-                data = json.load(f)
-            except json.JSONDecodeError:
-                # returns empty list
-                data = []
-            data.append(json_feedback)
-            f.seek(0)
-            # saves the current feedback to the log
-            json.dump(data, f, indent = 4)
-        
-    else:
-        with open(log_file, "w") as f:
-            # saves the current feedback to the log
-            json.dump([json_feedback], f, indent = 4)
+    try:
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.login(user_email, user_password)
+        server.send_message
+        server.quit()
+        print("Successfully sent feedback.")
+    except Exception as e:
+        print("Error sending feedback: {e}")
+
 
 def get_pdf_text(pdf_file):
     #reads the pdf and stores it as an object, strict set to false so it doesn't crash easily 
@@ -354,12 +334,12 @@ def main():
 
                     with option1:
                         if st.button("🤓👍", key = f"{i}_good_info"):
-                            feedback(q, a, "good")
+                            feedback(q, a, "good", office_hours = False)
                             st.toast("Feedback accepted.")
 
                     with option2:
                         if st.button("😢👎", key = f"{i}_bad_info"):
-                            feedback(q, a, "bad")
+                            feedback(q, a, "bad", office_hours = False)
                             st.toast("Feedback accepted.")
                         
             # with st.expander(f"Flashcard {i+1}"):
@@ -405,12 +385,12 @@ def main():
 
                 with option1:
                     if st.button("🤓👍", key = f"{i}_good_info_office_hours"):
-                        feedback_questions(question_text, "good")
+                        feedback(question_text, "n/a", "good", office_hours = True)
                         st.toast("Feedback accepted.")
 
                 with option2:
                     if st.button("😢👎", key = f"{i}_bad_info_office_hours"):
-                        feedback_questions(question_text, "bad")
+                        feedback(question_text, "n/a", "bad", office_hours = True)
                         st.toast("Feedback accepted.")
 
                 st.write("-" * 50)

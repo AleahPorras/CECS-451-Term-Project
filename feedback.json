@@ -26,5 +26,13 @@
     {
         "Office Hour Question": "John von Neumann is credited with conceptualizing malware in 1949. Based on the provided text, what was the core theoretical concept he introduced that retrospectively led his work to be considered the foundation for self-replicating programs, which we now understand as malware?",
         "Office Hour Feedback": "good"
+    },
+    {
+        "Office Hour Question": "Could you elaborate on how the 'trigger' and 'payload' components of a virus might vary in complexity and impact, using examples from the case studies like Elk Cloner or Michelangelo?",
+        "Office Hour Feedback": "good"
+    },
+    {
+        "Office Hour Question": "The classification of malware includes propagation method, payload, and whether it's host-based or independent. Could you explain the key differences and potential overlaps between 'propagation method' and 'can the malware replicate itself,' and how 'host-based' malware differs from 'independent/self-contained' malware, perhaps using viruses and worms as examples?",
+        "Office Hour Feedback": "bad"
     }
 ]
